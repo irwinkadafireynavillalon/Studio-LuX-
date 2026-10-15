@@ -1,0 +1,8 @@
+{
+  "name": "Studio LuX",
+  "description": "Meta-Sistema Operativo de Desarrollo (Meta-DevOS) con IA híbrida, Activity CLI, compilador APK y consola Firebase",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
