@@ -28,7 +28,7 @@ object FunctionGemmaLocalEngine {
     const val EXPECTED_SHA256 = "c18f3a5e84841d9961dbf83c185bb81d8995a9a16f28b4382898950d885a1194"
 
     data class LocalModelEngineConfig(
-        val endpointUrl: String = "https://90.11.29.1:4250",
+        val endpointUrl: String = "http://127.0.0.1:4250/",
         val modelName: String = "gemma-3-270m",
         val isServerRunning: Boolean = true,
         val temperature: Float = 0.7f,
@@ -38,7 +38,7 @@ object FunctionGemmaLocalEngine {
         val maxOutputTokens: Int = 2048,
         val repeatPenalty: Float = 1.1f,
         val jsonMode: Boolean = false,
-        val systemPrompt: String = "Eres el motor local Gemma-3-270m ejecutándose en localhost https://90.11.29.1:4250."
+        val systemPrompt: String = "Eres el motor local Gemma-3-270m ejecutándose en localhost http://127.0.0.1:4250/."
     )
 
     private val _engineConfig = kotlinx.coroutines.flow.MutableStateFlow(LocalModelEngineConfig())

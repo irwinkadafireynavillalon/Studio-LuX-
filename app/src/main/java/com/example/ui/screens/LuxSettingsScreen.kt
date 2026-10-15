@@ -181,13 +181,17 @@ fun LuxSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (googleSyncState.isSynced) "✔ Cuenta Google Sincronizada" else "Cuenta Google No Vinculada",
+                        text = if (googleSyncState.isSynced && googleSyncState.email.isNotBlank()) "✔ Desarrollador Autenticado" else "Sin Sesión de Desarrollador",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (googleSyncState.isSynced) LuxAccentGreen else LuxGoldLight
+                        color = if (googleSyncState.isSynced && googleSyncState.email.isNotBlank()) LuxAccentGreen else LuxGoldLight
                     )
-                    Text(googleSyncState.email, fontSize = 9.sp, color = LuxPlatinumSecondary)
-                    Text("Evita requerir Google API Key manual", fontSize = 8.sp, color = LuxAccentCyan)
+                    Text(
+                        text = if (googleSyncState.email.isNotBlank()) googleSyncState.email else "Inicia sesión con Firebase Auth para sincronizar",
+                        fontSize = 9.sp,
+                        color = LuxPlatinumSecondary
+                    )
+                    Text("Acceso seguro a Studio LuX sin requerir API Key", fontSize = 8.sp, color = LuxAccentCyan)
                 }
                 Button(
                     onClick = { onOpenGoogleSyncDialog() },
@@ -284,6 +288,19 @@ fun LuxSettingsScreen(
                     repository.updateInterfaceSettings(interfaceSettings.copy(backgroundImageAlpha = it))
                 },
                 valueRange = 0.1f..0.85f,
+                colors = SliderDefaults.colors(thumbColor = LuxGoldPrimary, activeTrackColor = LuxGoldPrimary)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            val settingsDataStore = remember { com.example.data.db.SettingsDataStore(context) }
+            val ttsVolume by settingsDataStore.ttsVolume.collectAsState(initial = 1.0f)
+            Text("Volumen TTS: ${(ttsVolume * 100).toInt()}%", fontSize = 9.sp, color = LuxPlatinumSecondary)
+            Slider(
+                value = ttsVolume,
+                onValueChange = {
+                    coroutineScope.launch { settingsDataStore.saveTtsVolume(it) }
+                },
+                valueRange = 0.0f..1.0f,
                 colors = SliderDefaults.colors(thumbColor = LuxGoldPrimary, activeTrackColor = LuxGoldPrimary)
             )
         }
@@ -440,6 +457,26 @@ fun LuxSettingsScreen(
                 Icon(Icons.Default.Share, contentDescription = null, tint = LuxDarkBackground, modifier = Modifier.size(13.dp))
                 Spacer(modifier = Modifier.width(5.dp))
                 Text("Compartir Archivo APK de Sys-LUX", color = LuxDarkBackground, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        val path = repository.exportData(context)
+                        if (path != null) {
+                            Toast.makeText(context, "Datos exportados a $path", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Error al exportar", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = LuxGoldContainer),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp)
+            ) {
+                Text("Exportar Historial y Logs", color = LuxGoldPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
 

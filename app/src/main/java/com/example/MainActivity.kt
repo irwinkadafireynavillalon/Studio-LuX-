@@ -8,6 +8,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -72,10 +75,12 @@ import com.example.data.repository.LuxRepository
 import com.example.data.repository.SoundHapticService
 import com.example.ui.components.DevOsChatbotDock
 import com.example.ui.components.GoogleAccountSyncDialog
+import com.example.ui.components.LuxDeveloperAuthDialog
 import com.example.ui.components.LuxHeader
 import com.example.ui.components.LuxInterfaceSettingsDialog
 import com.example.ui.components.LuxNavigationDrawerContent
 import com.example.ui.components.LuxPermissionsDialog
+import com.example.ui.screens.ActivityCliScreen
 import com.example.ui.screens.AiOrchestratorScreen
 import com.example.ui.screens.AndroidStudioScreen
 import com.example.ui.screens.ApkBuilderScreen
@@ -133,12 +138,16 @@ class MainActivity : ComponentActivity() {
 
         repository.notificationManager = notificationManager
         repository.roomDatabase = roomDb
+        lifecycleScope.launch {
+            repository.loadCommandHistoryFromRoom()
+        }
 
         ttsService = com.example.data.engine.LuxTtsService(applicationContext) { text, type, tag ->
             repository.addCliLog(text, type, tag)
         }
         repository.ttsService = ttsService
         orchestratorService = AiOrchestratorService(repository, soundService, applicationContext)
+        repository.initializeFirebaseAuth(applicationContext)
 
         // Inicializar caché de archivos fuente en Room y sincronización silenciosa de Cuenta Google
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -193,7 +202,8 @@ fun LuxAppRoot(
     var isIntroShowing by remember { mutableStateOf(sharedPrefs.getBoolean("is_first_run", true)) }
 
     // Destino Principal según el Menú Desplegado (Botones e Interfaces)
-    var currentDestination by remember { mutableStateOf(LuxScreenDestination.STUDIO_IA) }
+    var navigationStack by remember { mutableStateOf(listOf(LuxScreenDestination.STUDIO_IA)) }
+    val currentDestination = navigationStack.last()
     var currentTab by remember { mutableStateOf(LuxNavTab.ORCHESTRATOR) }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -202,6 +212,7 @@ fun LuxAppRoot(
     var showPermissionsDialog by remember { mutableStateOf(false) }
     var showInterfaceSettingsDialog by remember { mutableStateOf(false) }
     var showGoogleSyncDialog by remember { mutableStateOf(false) }
+    var showDeveloperAuthDialog by remember { mutableStateOf(false) }
     var showAndroidStudioSuite by remember { mutableStateOf(false) }
     var showLiveChatbotOverlay by remember { mutableStateOf(false) }
 
@@ -258,15 +269,32 @@ fun LuxAppRoot(
         )
     }
 
+    // Modal de Firebase Auth para Desarrolladores
+    if (showDeveloperAuthDialog) {
+        LuxDeveloperAuthDialog(
+            repository = repository,
+            soundService = soundService,
+            onDismiss = { showDeveloperAuthDialog = false }
+        )
+    }
+
     // Manejo de botón Atrás del sistema Android
-    BackHandler(enabled = drawerState.isOpen || showAndroidStudioSuite || currentDestination != LuxScreenDestination.STUDIO_IA) {
+    BackHandler(enabled = drawerState.isOpen || showAndroidStudioSuite || navigationStack.size > 1) {
         if (drawerState.isOpen) {
             coroutineScope.launch { drawerState.close() }
         } else if (showAndroidStudioSuite) {
             showAndroidStudioSuite = false
-        } else {
-            currentDestination = LuxScreenDestination.STUDIO_IA
-            currentTab = LuxNavTab.ORCHESTRATOR
+        } else if (navigationStack.size > 1) {
+            navigationStack = navigationStack.dropLast(1)
+            // Update currentTab based on the new destination
+            val newDestination = navigationStack.last()
+            currentTab = when (newDestination) {
+                LuxScreenDestination.STUDIO_IA -> LuxNavTab.ORCHESTRATOR
+                LuxScreenDestination.TERMUX_LUX -> LuxNavTab.CLI
+                LuxScreenDestination.WORKSPACE -> LuxNavTab.STUDIO
+                LuxScreenDestination.BUILDER -> LuxNavTab.BUILDER
+                else -> currentTab
+            }
         }
     }
 
@@ -290,7 +318,7 @@ fun LuxAppRoot(
                     onSelectDestination = { dest ->
                         soundService.playClick()
                         showAndroidStudioSuite = false
-                        currentDestination = dest
+                        navigationStack = listOf(dest)
                         // Sincronizar pestaña superior si aplica
                         when (dest) {
                             LuxScreenDestination.STUDIO_IA -> currentTab = LuxNavTab.ORCHESTRATOR
@@ -349,108 +377,7 @@ fun LuxAppRoot(
                 modifier = Modifier
                     .fillMaxSize()
                     .widthIn(max = 680.dp),
-                containerColor = Color.Transparent,
-                topBar = {
-                    val context = LocalContext.current
-                    LuxHeader(
-                        isServerActive = isServerActive,
-                        latencyMs = latencyMs,
-                        versionName = luxVersionName,
-                        selectedTab = currentTab,
-                        onOpenMenuDrawer = {
-                            soundService.playClick()
-                            coroutineScope.launch { drawerState.open() }
-                        },
-                        onSelectTab = { tab ->
-                            showAndroidStudioSuite = false
-                            soundService.playClick()
-                            currentTab = tab
-                            when (tab) {
-                                LuxNavTab.ORCHESTRATOR -> currentDestination = LuxScreenDestination.STUDIO_IA
-                                LuxNavTab.STUDIO -> currentDestination = LuxScreenDestination.WORKSPACE
-                                LuxNavTab.CLI -> currentDestination = LuxScreenDestination.TERMUX_LUX
-                                LuxNavTab.BUILDER -> currentDestination = LuxScreenDestination.BUILDER
-                            }
-                        },
-                        isGoogleAccountSynced = googleSyncState.isSynced,
-                        syncedGoogleEmail = googleSyncState.email,
-                        onOpenGoogleSyncDialog = {
-                            soundService.playClick()
-                            showGoogleSyncDialog = true
-                        },
-                        onQuickDownloadAntigravityCli = {
-                            coroutineScope.launch {
-                                val st = repository.downloadAndInstallAntigravityCli(context, soundService)
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "✔ ${st.packageFileName} (${st.sizeFormatted}) descargado y activo",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        },
-                        onOpenPermissionsPanel = { showPermissionsDialog = true },
-                        onShareApk = {
-                            soundService.playSuccess()
-                            repository.shareCurrentLuxAppApk(context)
-                        },
-                        onNavigateToOrchestrator = {
-                            showAndroidStudioSuite = false
-                            currentDestination = LuxScreenDestination.STUDIO_IA
-                            currentTab = LuxNavTab.ORCHESTRATOR
-                        },
-                        onAutoEvolveAndUpdate = {
-                            coroutineScope.launch {
-                                repository.runFullAutonomousEvolutionCycle(soundService)
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "Auto-Corregido, Auto-Mejorado y Actualizado a LUX v${repository.luxVersionName.value}",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        },
-                        onOpenInterfaceSettings = {
-                            soundService.playClick()
-                            showInterfaceSettingsDialog = true
-                        }
-                    )
-                },
-                bottomBar = {
-                    // Chatbot Dock en vivo en pantallas donde se requiera soporte rápido
-                    val showBottomChatDock = !showAndroidStudioSuite &&
-                        (currentDestination == LuxScreenDestination.WORKSPACE || currentDestination == LuxScreenDestination.BUILDER)
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                    ) {
-                        AnimatedVisibility(visible = showBottomChatDock) {
-                            DevOsChatbotDock(
-                                orchestratorService = orchestratorService,
-                                onNavigateToTab = { tabTag ->
-                                    when (tabTag) {
-                                        "tab_builder", "nav_builder" -> {
-                                            currentTab = LuxNavTab.BUILDER
-                                            currentDestination = LuxScreenDestination.BUILDER
-                                        }
-                                        "tab_cli", "nav_termux_lux" -> {
-                                            currentTab = LuxNavTab.CLI
-                                            currentDestination = LuxScreenDestination.TERMUX_LUX
-                                        }
-                                        "tab_studio", "nav_workspace" -> {
-                                            currentTab = LuxNavTab.STUDIO
-                                            currentDestination = LuxScreenDestination.WORKSPACE
-                                        }
-                                        else -> {
-                                            currentTab = LuxNavTab.ORCHESTRATOR
-                                            currentDestination = LuxScreenDestination.STUDIO_IA
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
+                containerColor = Color.Transparent
             ) { innerPadding ->
                 Box(
                     modifier = Modifier
@@ -465,17 +392,17 @@ fun LuxAppRoot(
                             onNavigateBack = { showAndroidStudioSuite = false },
                             onNavigateToBuilder = {
                                 showAndroidStudioSuite = false
-                                currentDestination = LuxScreenDestination.BUILDER
+                                navigationStack = navigationStack + LuxScreenDestination.BUILDER
                                 currentTab = LuxNavTab.BUILDER
                             },
                             onNavigateToCli = {
                                 showAndroidStudioSuite = false
-                                currentDestination = LuxScreenDestination.TERMUX_LUX
+                                navigationStack = navigationStack + LuxScreenDestination.TERMUX_LUX
                                 currentTab = LuxNavTab.CLI
                             },
                             onNavigateToShareApk = {
                                 showAndroidStudioSuite = false
-                                currentDestination = LuxScreenDestination.BUILDER
+                                navigationStack = navigationStack + LuxScreenDestination.BUILDER
                             }
                         )
                     } else {
@@ -487,29 +414,31 @@ fun LuxAppRoot(
                                 repository = repository,
                                 soundService = soundService,
                                 onNavigateToTab = { route ->
-                                    when (route) {
-                                        "nav_termux_lux", "tab_cli" -> {
-                                            currentDestination = LuxScreenDestination.TERMUX_LUX
-                                            currentTab = LuxNavTab.CLI
+                                    val nextDestination = when (route) {
+                                        "nav_termux_lux", "tab_cli" -> LuxScreenDestination.TERMUX_LUX
+                                        "nav_permissions_settings" -> LuxScreenDestination.PERMISSIONS_SETTINGS
+                                        "nav_security_accounts" -> LuxScreenDestination.SECURITY_ACCOUNTS
+                                        "nav_testing_autocorrection" -> LuxScreenDestination.TESTING_AUTOCORRECTION
+                                        "nav_sandbox_memory" -> LuxScreenDestination.SANDBOX_MEMORY
+                                        "nav_workspace", "tab_studio" -> LuxScreenDestination.WORKSPACE
+                                        "nav_lux_settings" -> LuxScreenDestination.LUX_SETTINGS
+                                        "nav_system_apps" -> LuxScreenDestination.SYSTEM_APPS
+                                        "nav_activity_cli" -> LuxScreenDestination.ACTIVITY_CLI
+                                        "nav_builder", "tab_builder" -> LuxScreenDestination.BUILDER
+                                        "open_drawer" -> null
+                                        else -> LuxScreenDestination.STUDIO_IA
+                                    }
+                                    if (nextDestination != null) {
+                                        navigationStack = navigationStack + nextDestination
+                                        currentTab = when (nextDestination) {
+                                            LuxScreenDestination.STUDIO_IA -> LuxNavTab.ORCHESTRATOR
+                                            LuxScreenDestination.TERMUX_LUX -> LuxNavTab.CLI
+                                            LuxScreenDestination.WORKSPACE -> LuxNavTab.STUDIO
+                                            LuxScreenDestination.BUILDER -> LuxNavTab.BUILDER
+                                            else -> currentTab
                                         }
-                                        "nav_permissions_settings" -> currentDestination = LuxScreenDestination.PERMISSIONS_SETTINGS
-                                        "nav_security_accounts" -> currentDestination = LuxScreenDestination.SECURITY_ACCOUNTS
-                                        "nav_testing_autocorrection" -> currentDestination = LuxScreenDestination.TESTING_AUTOCORRECTION
-                                        "nav_sandbox_memory" -> currentDestination = LuxScreenDestination.SANDBOX_MEMORY
-                                        "nav_workspace", "tab_studio" -> {
-                                            currentDestination = LuxScreenDestination.WORKSPACE
-                                            currentTab = LuxNavTab.STUDIO
-                                        }
-                                        "nav_lux_settings" -> currentDestination = LuxScreenDestination.LUX_SETTINGS
-                                        "nav_system_apps" -> currentDestination = LuxScreenDestination.SYSTEM_APPS
-                                        "nav_builder", "tab_builder" -> {
-                                            currentDestination = LuxScreenDestination.BUILDER
-                                            currentTab = LuxNavTab.BUILDER
-                                        }
-                                        "open_drawer" -> {
-                                            coroutineScope.launch { drawerState.open() }
-                                        }
-                                        else -> currentDestination = LuxScreenDestination.STUDIO_IA
+                                    } else if (route == "open_drawer") {
+                                        coroutineScope.launch { drawerState.open() }
                                     }
                                 },
                                 onOpenGoogleSyncDialog = { showGoogleSyncDialog = true },
@@ -535,7 +464,8 @@ fun LuxAppRoot(
                             LuxScreenDestination.SECURITY_ACCOUNTS -> SecurityAndAccountsScreen(
                                 repository = repository,
                                 soundService = soundService,
-                                onOpenGoogleSyncDialog = { showGoogleSyncDialog = true }
+                                onOpenGoogleSyncDialog = { showGoogleSyncDialog = true },
+                                onOpenDeveloperAuthDialog = { showDeveloperAuthDialog = true }
                             )
 
                             // 5. Prueba & Auto-Corrección (Diagnóstico AST, Motores Offline, Compilar y Combinar)
@@ -543,7 +473,7 @@ fun LuxAppRoot(
                                 repository = repository,
                                 soundService = soundService,
                                 onNavigateToBuilder = {
-                                    currentDestination = LuxScreenDestination.BUILDER
+                                    navigationStack = navigationStack + LuxScreenDestination.BUILDER
                                     currentTab = LuxNavTab.BUILDER
                                 }
                             )
@@ -559,11 +489,11 @@ fun LuxAppRoot(
                                 repository = repository,
                                 soundService = soundService,
                                 onNavigateToBuilder = {
-                                    currentDestination = LuxScreenDestination.BUILDER
+                                    navigationStack = navigationStack + LuxScreenDestination.BUILDER
                                     currentTab = LuxNavTab.BUILDER
                                 },
                                 onNavigateToCli = {
-                                    currentDestination = LuxScreenDestination.TERMUX_LUX
+                                    navigationStack = navigationStack + LuxScreenDestination.TERMUX_LUX
                                     currentTab = LuxNavTab.CLI
                                 }
                             )
@@ -580,9 +510,18 @@ fun LuxAppRoot(
                                 repository = repository,
                                 soundService = soundService,
                                 onNavigateToTermux = {
-                                    currentDestination = LuxScreenDestination.TERMUX_LUX
+                                    navigationStack = navigationStack + LuxScreenDestination.TERMUX_LUX
                                     currentTab = LuxNavTab.CLI
                                 }
+                            )
+
+                            // 9. Activity CLI (Línea de Comandos, Entrada de Texto, Diagnóstico y Salida de Herramientas)
+                            LuxScreenDestination.ACTIVITY_CLI -> ActivityCliScreen(
+                                repository = repository,
+                                logs = repository.cliLogs.collectAsState().value,
+                                activeProject = activeProject,
+                                soundService = soundService,
+                                orchestratorService = orchestratorService
                             )
 
                             // Compilador APK Nativo
@@ -597,43 +536,7 @@ fun LuxAppRoot(
                         }
                     }
 
-                    // Botón Flotante para Chatbot en Vivo (Disponible cuando no estamos en la pantalla principal de chat)
-                    if (currentDestination != LuxScreenDestination.STUDIO_IA) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 12.dp, bottom = 12.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xE6101624))
-                                .border(1.dp, LuxGoldSilverBorderBrush, RoundedCornerShape(20.dp))
-                                .clickable {
-                                    soundService.playClick()
-                                    currentDestination = LuxScreenDestination.STUDIO_IA
-                                    currentTab = LuxNavTab.ORCHESTRATOR
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                                .testTag("fab_live_chatbot_shortcut"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(LuxAccentGreen)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Icon(Icons.Default.Chat, contentDescription = "Chatbot IA en Vivo", tint = LuxGoldLight, modifier = Modifier.size(13.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Chatbot LuX",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LuxGoldLight
-                                )
-                            }
-                        }
-                    }
+                    // Botón flotante eliminado por solicitud del usuario
 
                     // Mini-HUD Flotante no intrusivo con Cristal Oro y Plata cuando el modo "Sobre otras aplicaciones" está activo
                     if (isFloatingHudEnabled) {

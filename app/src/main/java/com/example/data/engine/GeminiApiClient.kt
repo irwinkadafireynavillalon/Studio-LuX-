@@ -30,13 +30,13 @@ object GeminiApiClient {
     private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/"
 
     @Volatile
-    var isGoogleAccountSynced: Boolean = true
+    var isGoogleAccountSynced: Boolean = false
 
     @Volatile
-    var syncedGoogleEmail: String = "francisco.reyna2077@gmail.com"
+    var syncedGoogleEmail: String = ""
 
     @Volatile
-    var syncedGoogleOAuthToken: String = "ya29.a0AXooCgv_GoogleOAuth_ZeroApiKey_Active"
+    var syncedGoogleOAuthToken: String = ""
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(60, TimeUnit.SECONDS)

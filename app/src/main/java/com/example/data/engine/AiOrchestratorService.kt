@@ -80,12 +80,12 @@ class AiOrchestratorService(
             com.example.data.models.AiAgentType.GEMINI3_LIGHT_TERMUX -> {
                 _selectedModel.value = "gemini-3-termux"
                 _isOfflineMode.value = true
-                repository.addCliLog("💻 [AGENTE 3] IA Gemini 3 Ligero activo. Conectado con localhost 90.11.29.1:4250 mediante Termux & Lifertl.", CliLogType.INFO, "AGENT")
+                repository.addCliLog("💻 [AGENTE 3] IA Gemini 3 Ligero activo. Conectado con localhost http://127.0.0.1:4250/ mediante Termux & Lifertl.", CliLogType.INFO, "AGENT")
             }
             com.example.data.models.AiAgentType.GEMMA3_270M_LOCAL -> {
                 _selectedModel.value = "gemma-3-270m"
                 _isOfflineMode.value = true
-                repository.addCliLog("⚡ [AGENTE 3] Gemma3 270m Local activo. Servidor Localhost https://90.11.29.1:4250 vía Termux y NPU/GPU.", CliLogType.INFO, "AGENT")
+                repository.addCliLog("⚡ [AGENTE 3] Gemma3 270m Local activo. Servidor Localhost http://127.0.0.1:4250/ vía Termux y NPU/GPU.", CliLogType.INFO, "AGENT")
             }
             com.example.data.models.AiAgentType.ANTIGRAVITY_CLI_HYBRID -> {
                 _selectedModel.value = "antigravity-hybrid"
@@ -96,44 +96,69 @@ class AiOrchestratorService(
     }
 
     init {
-        // Initial welcome message from Google AI Studio Orchestrator
+        coroutineScope.launch {
+            loadMessagesFromDatabase()
+        }
+    }
+
+    private suspend fun loadMessagesFromDatabase() {
+        val db = repository.roomDatabase ?: return
+        db.messageDao().getAllMessages().collect { entities ->
+            _messages.value = entities.map { entity ->
+                com.example.data.models.AgentChatMessage(
+                    id = entity.id,
+                    sender = com.example.data.models.AgentMessageSender.valueOf(entity.sender),
+                    text = entity.text,
+                    timestamp = entity.timestamp,
+                    modelName = entity.modelName
+                )
+            }
+        }
+    }
+
+    fun startNewChat() {
         val welcomeMessage = AgentChatMessage(
             sender = AgentMessageSender.ORCHESTRATOR_AGENT,
             text = """
-            ✨ **Bienvenido al Orquestador IA de LUX** (Inspirado en Google AI Studio).
+            ✨ **Nuevo Chat Iniciado - Studio LuX** (Google AI Studio).
             
-            Estoy enlazado directamente a los motores del sistema para controlar y adaptar la aplicación según tus especificaciones:
-            
-            • **Crea Aplicaciones:** Pídeme cualquier app (ej: *"Crea una app de delivery con Room"*).
-            • **Control de Compilación:** Compilaré y firmaré el archivo APK en tiempo real (*"Compila el APK"*).
-            • **Distribución Inmediata:** Puedo transferir el paquete por Bluetooth, Correo o Selector (*"Comparte el APK"*).
-            • **Diagnóstico & Reparación:** Analizo y aplico hotfixes autónomos a fallos del Kernel.
-            
-            ¿Cómo deseas que configuremos tu aplicación hoy?
+            Orquestador IA listo y conectado. ¿Qué deseas crear, diseñar o configurar hoy?
             """.trimIndent(),
             timestamp = timeFormat.format(Date()),
             actions = listOf(
                 AgentInteractiveAction(
-                    label = "🚀 Crear App de Finanzas",
+                    label = "🚀 Crear App con Room",
                     type = AgentActionType.CREATE_PROJECT,
-                    payload = "Billetera digital con cotizaciones en vivo y Room SQLite"
+                    payload = "App con Jetpack Compose y Room SQLite"
                 ),
                 AgentInteractiveAction(
-                    label = "📦 Compilar APK Ahora",
+                    label = "📦 Compilar APK",
                     type = AgentActionType.BUILD_APK
                 ),
                 AgentInteractiveAction(
-                    label = "📤 Compartir APK de LUX",
+                    label = "📤 Compartir",
                     type = AgentActionType.SHARE_APK
-                ),
-                AgentInteractiveAction(
-                    label = "🛡 Diagnóstico Kernel",
-                    type = AgentActionType.RUN_DIAGNOSTIC
                 )
             ),
             modelName = "gemini-3.8-flash"
         )
         _messages.value = listOf(welcomeMessage)
+        soundService?.playClick()
+        repository.addCliLog("✨ [AI STUDIO] Nuevo chat iniciado al abrir aplicación.", CliLogType.INFO, "ORCHESTRATOR")
+        coroutineScope.launch { saveMessage(welcomeMessage) }
+    }
+
+    private suspend fun saveMessage(msg: AgentChatMessage) {
+        val db = repository.roomDatabase ?: return
+        db.messageDao().insertMessage(
+            com.example.data.db.MessageEntity(
+                id = msg.id,
+                sender = msg.sender.name,
+                text = msg.text,
+                timestamp = msg.timestamp,
+                modelName = msg.modelName
+            )
+        )
     }
 
     fun setSystemInstruction(instruction: String) {
@@ -189,6 +214,7 @@ class AiOrchestratorService(
         )
         _messages.value = _messages.value + userMsg
         soundService?.playClick()
+        coroutineScope.launch { saveMessage(userMsg) }
 
         coroutineScope.launch {
             _isGenerating.value = true
@@ -849,6 +875,63 @@ class AiOrchestratorService(
                 3. gemini-3.1-pro-preview        [Cloud REST]   - Razonamiento profundo y arquitectura
                 4. gemini-3.1-flash-lite-preview [Cloud REST]   - Ultra-baja latencia en la nube
                 5. google/functiongemma-270m     [Local NPU]    - Inferencia 100% Offline / Function Calling
+                """.trimIndent()
+            }
+
+            lower == "auth" || lower == "whoami" || lower == "user" -> {
+                val auth = repository.firebaseAuthManager?.authState?.value
+                if (auth != null && auth.isAuthenticated && auth.email.isNotBlank()) {
+                    """
+                    [FIREBASE AUTH - DEVELOPER IDENTITY]
+                    Estado      : AUTENTICADO (Sesión Activa)
+                    Email       : ${auth.email}
+                    UID         : ${auth.uid}
+                    Nombre      : ${auth.displayName}
+                    Rol         : ${auth.role}
+                    Proveedor   : ${auth.authProvider}
+                    Cuota       : ${auth.quotaTier}
+                    Último Login: ${auth.lastLoginFormatted}
+                    Token SHA   : ${auth.idTokenPreview}
+                    """.trimIndent()
+                } else {
+                    """
+                    [FIREBASE AUTH - ESTADO ACTUAL]
+                    Estado : NO AUTENTICADO
+                    Usuario: Ningún desarrollador ha iniciado sesión.
+                    Acción : Usa el modal 'Seguridad y Cuentas' o inicia sesión con Google Sign-In para vincular tu entorno de Studio LuX.
+                    """.trimIndent()
+                }
+            }
+
+            lower == "tools" || lower == "tool list" -> {
+                """
+                ╔══════════════════════════════════════════════════════════════════╗
+                ║                STUDIO LUX - HERRAMIENTAS Y SUBSISTEMAS           ║
+                ╚══════════════════════════════════════════════════════════════════╝
+                [1] ApkBuilderService       - Compilación nativa Gradle y firma V2/V3 APK
+                [2] AntigravityCLI Bridge    - Telemetría AST y análisis de código en tiempo real
+                [3] AutoCorrectionEngine     - Auto-reparación y generación de hotfixes
+                [4] AutoDevOsEngine          - Inyección Hot-Swap DEX Delta sin recompilar
+                [5] LuxRoomDatabase          - Caché SQLite y sincronización de archivos fuente
+                [6] FunctionGemmaLocalEngine - Inferencia local NPU de 270M (https://90.11.29.1:4250)
+                [7] GeminiApiClient          - Motor en la nube de Google AI Studio (3.5 Flash/3.1 Pro)
+                [8] LuxNotificationManager   - Alertas prioritarias y sonido sinfónico sintetizado
+                [9] FileDownloader           - Verificación criptográfica SHA-256 de pesos IA
+                [10] UniversalTransferFile   - Gestor universal de archivos (*/*) para chat y terminal
+                """.trimIndent()
+            }
+
+            lower == "sysinfo" || lower == "system" || lower == "kernel" -> {
+                val mem = com.example.data.engine.LuxPriorityKernelService.allocatedMemoryMb.value
+                val isHud = com.example.data.engine.LuxPriorityKernelService.isInAppFloatingHudEnabled.value
+                """
+                [STUDIO LUX KERNEL TELEMETRY]
+                Prioridad OS   : REALTIME / URGENT_DISPLAY
+                Memoria Heap   : ${mem} MB (LargeHeap asignado)
+                Modo HUD/PiP   : ${if (isHud) "ACTIVO (Overlay habilitado)" else "STANDBY"}
+                Servicio Fondo : LuxPriorityKernelService (Ejecución Continua Activa)
+                Arquitectura   : Clean Architecture + MVVM + Jetpack Compose
+                Target SDK     : Android API 36
                 """.trimIndent()
             }
 

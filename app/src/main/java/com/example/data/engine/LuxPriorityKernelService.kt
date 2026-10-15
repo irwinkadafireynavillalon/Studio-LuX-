@@ -32,6 +32,35 @@ class LuxPriorityKernelService : Service() {
     override fun onCreate() {
         super.onCreate()
         applyRealtimeProcessPriority()
+        startForegroundService()
+    }
+
+    private fun startForegroundService() {
+        val channelId = "lux_kernel_channel"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                channelId,
+                "Lux Kernel Service",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+
+        val playIntent = Intent(this, NotificationReceiver::class.java).apply { action = "ACTION_PLAY" }
+        val pauseIntent = Intent(this, NotificationReceiver::class.java).apply { action = "ACTION_PAUSE" }
+        
+        val playPendingIntent = android.app.PendingIntent.getBroadcast(this, 0, playIntent, android.app.PendingIntent.FLAG_IMMUTABLE)
+        val pausePendingIntent = android.app.PendingIntent.getBroadcast(this, 0, pauseIntent, android.app.PendingIntent.FLAG_IMMUTABLE)
+
+        val notification = androidx.core.app.NotificationCompat.Builder(this, channelId)
+            .setContentTitle("Studio LuX")
+            .setContentText("Kernel activo")
+            .setSmallIcon(android.R.drawable.ic_menu_save)
+            .addAction(android.R.drawable.ic_media_play, "Play", playPendingIntent)
+            .addAction(android.R.drawable.ic_media_pause, "Pause", pausePendingIntent)
+            .build()
+        startForeground(1, notification)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

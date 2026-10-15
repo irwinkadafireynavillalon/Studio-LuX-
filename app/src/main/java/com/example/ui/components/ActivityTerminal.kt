@@ -130,6 +130,9 @@ fun ActivityTerminal(
     onOpenModelManager: (() -> Unit)? = null,
     terminalTitle: String = "activity_cli@lux-devos: ~",
     suggestedCommands: List<String> = listOf(
+        "ls",
+        "cd",
+        "mkdir",
         "antigravity run \"diagnóstico\"",
         "patch list",
         "monitor status",
@@ -847,35 +850,108 @@ fun ActivityTerminal(
             }
         }
 
-        // Sugerencias Rápidas de Comandos en Línea (Compactas para no estorbar la terminal)
+        // Sugerencias Dinámicas de Auto-completado basadas en el Historial Room y Comandos Frecuentes
+        val matchingSuggestions = remember(commandInput, commandHistory, suggestedCommands) {
+            val query = commandInput.trim().lowercase()
+            val combined = (commandHistory + suggestedCommands).distinct()
+            if (query.isEmpty()) {
+                combined.take(8)
+            } else {
+                combined.filter { it.lowercase().contains(query) || it.lowercase().startsWith(query) }
+                    .sortedBy { if (it.lowercase().startsWith(query)) 0 else 1 }
+                    .take(6)
+            }
+        }
+
+        // Teclado Especializado en Pantalla para Símbolos CLI rápidos (|, >, $, #, etc.)
+        val specializedSymbols = listOf("|", ">", "$", "#", "--", "&", "/", "-", "=", "?", "*", "~")
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 3.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .testTag("cli_specialized_symbol_keyboard"),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            suggestedCommands.forEach { cmd ->
+            Text(
+                text = "Simbolos:",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp
+                ),
+                color = textMuted,
+                modifier = Modifier.padding(end = 2.dp)
+            )
+            specializedSymbols.forEach { symbol ->
                 androidx.compose.material3.Surface(
                     onClick = {
-                        commandInput = cmd
-                        onExecuteCommand(cmd)
-                        commandInput = ""
+                        commandInput += symbol
                     },
                     shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFF0A0F16),
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, borderColor)
+                    color = Color(0xFF131D2B),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, promptCyan.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .height(30.dp)
+                        .testTag("symbol_key_${symbol.replace("|", "pipe").replace(">", "gt").replace("$", "dollar").replace("#", "hash").replace("--", "double_dash").replace("&", "ampersand").replace("/", "slash").replace("-", "dash").replace("=", "equals").replace("?", "question").replace("*", "star").replace("~", "tilde")}")
                 ) {
-                    Text(
-                        text = cmd,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 9.5.sp
-                        ),
-                        color = promptGreen,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                    )
+                    Box(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = symbol,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            ),
+                            color = promptCyan
+                        )
+                    }
+                }
+            }
+        }
+
+        if (matchingSuggestions.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                    .testTag("cli_suggestion_row"),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (commandInput.isBlank()) "Sugerencias:" else "Auto-match:",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 9.sp
+                    ),
+                    color = textMuted,
+                    modifier = Modifier.padding(end = 2.dp)
+                )
+                matchingSuggestions.forEach { cmd ->
+                    androidx.compose.material3.Surface(
+                        onClick = {
+                            commandInput = cmd
+                        },
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF0A0F16),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, borderColor),
+                        modifier = Modifier.testTag("suggestion_chip_${cmd.hashCode()}")
+                    ) {
+                        Text(
+                            text = cmd,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 9.5.sp
+                            ),
+                            color = promptGreen,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        )
+                    }
                 }
             }
         }

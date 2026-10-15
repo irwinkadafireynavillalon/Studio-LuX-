@@ -6,13 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [CachedProjectFileEntity::class],
-    version = 1,
+    entities = [CachedProjectFileEntity::class, CommandHistoryEntity::class, MessageEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class LuxRoomDatabase : RoomDatabase() {
 
     abstract fun projectFileDao(): ProjectFileDao
+    abstract fun commandHistoryDao(): CommandHistoryDao
+    abstract fun messageDao(): MessageDao
 
     companion object {
         @Volatile

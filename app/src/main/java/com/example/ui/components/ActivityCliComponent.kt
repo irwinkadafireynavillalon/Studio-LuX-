@@ -121,7 +121,13 @@ fun ActivityCliComponent(
 
     val quickCommands = listOf(
         "help",
+        "ls",
+        "cd",
+        "mkdir",
         "status",
+        "tools",
+        "auth",
+        "sysinfo",
         "build --apk",
         "tree",
         "diagnose",
@@ -412,39 +418,74 @@ fun ActivityCliComponent(
                     )
                 }
 
-                TextField(
-                    value = inputCommand,
-                    onValueChange = { inputCommand = it },
-                    placeholder = {
-                        Text(
-                            "Escribe comando o instrucción...",
+                Column(modifier = Modifier.weight(1f)) {
+                    if (inputCommand.isNotEmpty()) {
+                        val suggestions = quickCommands.filter { it.startsWith(inputCommand.lowercase()) }
+                        if (suggestions.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 2.dp, vertical = 2.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                suggestions.forEach { suggestion ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(Color(0xFF1E2633))
+                                            .border(0.5.dp, LuxAccentCyan.copy(alpha = 0.5f), RoundedCornerShape(5.dp))
+                                            .clickable { inputCommand = suggestion }
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = suggestion,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontFamily = FontFamily.Monospace,
+                                                fontSize = 10.sp
+                                            ),
+                                            color = LuxAccentCyan
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    TextField(
+                        value = inputCommand,
+                        onValueChange = { inputCommand = it },
+                        placeholder = {
+                            Text(
+                                "Escribe comando o instrucción...",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                color = LuxOnDarkMuted
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("activity_cli_input_text_field"),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(
+                            onSend = { submitCommand(inputCommand) }
+                        ),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = LuxTerminalText,
+                            unfocusedTextColor = LuxTerminalText,
+                            cursorColor = LuxAccentGreen
+                        ),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            color = LuxOnDarkMuted
+                            fontSize = 11.5.sp
                         )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("activity_cli_input_text_field"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(
-                        onSend = { submitCommand(inputCommand) }
-                    ),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = LuxTerminalText,
-                        unfocusedTextColor = LuxTerminalText,
-                        cursorColor = LuxAccentGreen
-                    ),
-                    textStyle = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.5.sp
                     )
-                )
+                }
 
                 Spacer(modifier = Modifier.width(4.dp))
 

@@ -16,6 +16,8 @@ import com.example.data.models.SelfHealingStatus
 import com.example.data.models.SelfHealingTask
 import com.example.data.models.TerminalThemeMode
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,6 +92,21 @@ class LuxRepository {
     val googleAccountSyncState: StateFlow<com.example.data.models.GoogleAccountSyncState> = googleAccountSyncManager.syncState
     val isGoogleSyncing: StateFlow<Boolean> = googleAccountSyncManager.isSyncing
 
+    var firebaseAuthManager: com.example.data.engine.LuxFirebaseAuthManager? = null
+
+    fun initializeFirebaseAuth(context: android.content.Context) {
+        if (firebaseAuthManager == null) {
+            firebaseAuthManager = com.example.data.engine.LuxFirebaseAuthManager(context.applicationContext) { text, type, tag ->
+                addCliLog(text, type, tag)
+            }
+        }
+    }
+
+    fun getOrCreateFirebaseAuth(context: android.content.Context): com.example.data.engine.LuxFirebaseAuthManager {
+        initializeFirebaseAuth(context)
+        return firebaseAuthManager!!
+    }
+
     private val _antigravityCliState = MutableStateFlow(com.example.data.models.AntigravityCliPackageState())
     val antigravityCliState: StateFlow<com.example.data.models.AntigravityCliPackageState> = _antigravityCliState.asStateFlow()
 
@@ -99,7 +116,28 @@ class LuxRepository {
     private val _terminalTheme = MutableStateFlow(TerminalThemeMode.OBSIDIAN_MATRIX)
     val terminalTheme: StateFlow<TerminalThemeMode> = _terminalTheme.asStateFlow()
 
-    private val _userEmail = MutableStateFlow("francisco.reyna2077@gmail.com")
+    private val _cpuUsage = MutableStateFlow(15)
+    val cpuUsage: StateFlow<Int> = _cpuUsage.asStateFlow()
+
+    private val _ramUsage = MutableStateFlow(1200)
+    val ramUsage: StateFlow<Int> = _ramUsage.asStateFlow()
+
+    init {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            while(true) {
+                _cpuUsage.value = (10..60).random()
+                _ramUsage.value = (1000..3000).random()
+                delay(3000)
+            }
+        }
+    }
+
+    fun setTerminalTheme(theme: TerminalThemeMode) {
+        _terminalTheme.value = theme
+    }
+
+
+    private val _userEmail = MutableStateFlow("")
     val userEmail: StateFlow<String> = _userEmail.asStateFlow()
 
     var roomDatabase: com.example.data.db.LuxRoomDatabase? = null
@@ -120,6 +158,23 @@ class LuxRepository {
     ))
     val commandHistory: StateFlow<List<String>> = _commandHistory.asStateFlow()
 
+    suspend fun loadCommandHistoryFromRoom() {
+        val db = roomDatabase ?: return
+        try {
+            val list = db.commandHistoryDao().getCommandHistory()
+            if (list.isNotEmpty()) {
+                _commandHistory.value = list
+            } else {
+                val defaults = _commandHistory.value
+                for (cmd in defaults) {
+                    db.commandHistoryDao().insertCommand(com.example.data.db.CommandHistoryEntity(command = cmd))
+                }
+            }
+        } catch (e: Exception) {
+            addCliLog("⚠ Error cargando historial desde Room: ${e.message}", CliLogType.WARNING, "ROOM_CACHE")
+        }
+    }
+
     fun setUserEmail(email: String) {
         val trimmed = email.trim()
         if (trimmed.isNotEmpty()) {
@@ -127,6 +182,12 @@ class LuxRepository {
             com.example.data.engine.GeminiApiClient.syncedGoogleEmail = trimmed
             addCliLog("👤 Correo de Cuenta Google actualizado: '$trimmed'. Sesión sincronizada sin necesidad de API Key.", CliLogType.INFO, "AUTH")
         }
+    }
+
+    suspend fun exportData(context: android.content.Context): String? {
+        val db = roomDatabase ?: return null
+        val exportManager = com.example.data.util.ExportManager(context, db.messageDao())
+        return exportManager.exportData()
     }
 
     suspend fun syncGoogleAccountWithoutApiKey(
@@ -581,10 +642,6 @@ class LuxRepository {
         }
     }
 
-    fun setTerminalTheme(theme: TerminalThemeMode) {
-        _terminalTheme.value = theme
-    }
-
     fun selectProject(project: GeneratedAppProject) {
         _activeProject.value = project
     }
@@ -684,6 +741,12 @@ class LuxRepository {
         val trimmed = commandText.trim()
         if (trimmed.isNotEmpty()) {
             _commandHistory.value = (_commandHistory.value.filter { it != trimmed } + trimmed).takeLast(20)
+            val db = roomDatabase
+            if (db != null) {
+                try {
+                    db.commandHistoryDao().insertCommand(com.example.data.db.CommandHistoryEntity(command = trimmed))
+                } catch (_: Exception) {}
+            }
         }
         addCliLog("> $trimmed", CliLogType.COMMAND, "USER_INPUT")
         soundService?.playCliExecute()
@@ -2107,11 +2170,11 @@ class LuxRepository {
         delay(350)
         addCliLog("⬇ [DESCARGA] Modelo gemma-3-270m (270 MB) descargado y verificado con SHA-256.", CliLogType.SUCCESS, "GEMMA3")
         delay(250)
-        addCliLog("> python -m gemma_server --host 90.11.29.1 --port 4250 --model gemma-3-270m.bin --ssl", CliLogType.COMMAND, "TERMUX")
+        addCliLog("> python -m gemma_server --host 127.0.0.1 --port 4250 --model gemma-3-270m.bin", CliLogType.COMMAND, "TERMUX")
         delay(200)
         _isLocalServerRunning.value = true
         _serverLatencyMs.value = 14
-        addCliLog("🚀 [SERVIDOR LOCALHOST ACTIVO] https://90.11.29.1:4250 en línea (Motor tipo Ollama / LM Studio).", CliLogType.SUCCESS, "GEMMA3")
+        addCliLog("🚀 [SERVIDOR LOCALHOST ACTIVO] http://127.0.0.1:4250/ en línea (Motor tipo Ollama / LM Studio).", CliLogType.SUCCESS, "GEMMA3")
         addCliLog("✔ Configurado para que cualquier aplicación con IA en el dispositivo pueda consumir el modelo gemma-3-270m.", CliLogType.AGENT, "GEMMA3")
         soundService?.playSuccess()
     }

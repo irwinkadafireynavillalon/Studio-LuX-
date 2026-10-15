@@ -35,14 +35,14 @@ class GoogleAccountSyncManager(
 
     private val _syncState = MutableStateFlow(
         GoogleAccountSyncState(
-            isSynced = true,
-            email = "francisco.reyna2077@gmail.com",
-            displayName = "Francisco Reyna (Google Cloud Dev)",
-            authProvider = "Google Identity · Credential Manager OAuth2",
-            sessionTokenPreview = "ya29.a0AXooCgv_GoogleOAuth_ZeroApiKey_Active",
-            bypassManualApiKey = true,
-            lastSyncedTimestamp = timeFormat.format(Date()),
-            cloudQuotaStatus = "Activo (Sesión Google Vinculada · Sin API Key manual)"
+            isSynced = false,
+            email = "",
+            displayName = "",
+            authProvider = "Firebase Auth · Google Identity",
+            sessionTokenPreview = "",
+            bypassManualApiKey = false,
+            lastSyncedTimestamp = "Sin sesión activa",
+            cloudQuotaStatus = "Inicia sesión con Firebase Auth para desarrolladores de Studio LuX"
         )
     )
     val syncState: StateFlow<GoogleAccountSyncState> = _syncState.asStateFlow()
@@ -51,9 +51,9 @@ class GoogleAccountSyncManager(
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
     init {
-        GeminiApiClient.isGoogleAccountSynced = true
-        GeminiApiClient.syncedGoogleEmail = _syncState.value.email
-        GeminiApiClient.syncedGoogleOAuthToken = _syncState.value.sessionTokenPreview
+        GeminiApiClient.isGoogleAccountSynced = false
+        GeminiApiClient.syncedGoogleEmail = ""
+        GeminiApiClient.syncedGoogleOAuthToken = ""
     }
 
     /**
@@ -69,7 +69,7 @@ class GoogleAccountSyncManager(
         _isSyncing.value = true
 
         val targetEmail = preferredEmail?.trim()?.takeIf { it.isNotEmpty() && it.contains("@") }
-            ?: _syncState.value.email.ifBlank { "francisco.reyna2077@gmail.com" }
+            ?: _syncState.value.email.ifBlank { "" }
 
         logEmitter(
             "🔐 [GOOGLE SYNC] Iniciando sincronización de Cuenta Google vía Jetpack Credential Manager para evitar Google API Key...",

@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Memory
@@ -123,7 +124,7 @@ fun LuxNavigationDrawerContent(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Sys-LUX",
+                            text = "Studio LuX",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 fontFamily = FontFamily.Serif
@@ -176,17 +177,31 @@ fun LuxNavigationDrawerContent(
             )
 
             DrawerDestinationItem(
-                destination = LuxScreenDestination.PERMISSIONS_SETTINGS,
-                icon = Icons.Default.Tune,
-                isSelected = currentDestination == LuxScreenDestination.PERMISSIONS_SETTINGS,
-                onClick = { onSelectDestination(LuxScreenDestination.PERMISSIONS_SETTINGS) }
+                destination = LuxScreenDestination.WORKSPACE,
+                icon = Icons.Default.Dashboard,
+                isSelected = currentDestination == LuxScreenDestination.WORKSPACE,
+                onClick = { onSelectDestination(LuxScreenDestination.WORKSPACE) }
             )
 
             DrawerDestinationItem(
-                destination = LuxScreenDestination.SECURITY_ACCOUNTS,
-                icon = Icons.Default.Security,
-                isSelected = currentDestination == LuxScreenDestination.SECURITY_ACCOUNTS,
-                onClick = { onSelectDestination(LuxScreenDestination.SECURITY_ACCOUNTS) }
+                destination = LuxScreenDestination.SYSTEM_APPS,
+                icon = Icons.Default.Android,
+                isSelected = currentDestination == LuxScreenDestination.SYSTEM_APPS,
+                onClick = { onSelectDestination(LuxScreenDestination.SYSTEM_APPS) }
+            )
+
+            DrawerDestinationItem(
+                destination = LuxScreenDestination.ACTIVITY_CLI,
+                icon = Icons.Default.Terminal,
+                isSelected = currentDestination == LuxScreenDestination.ACTIVITY_CLI,
+                onClick = { onSelectDestination(LuxScreenDestination.ACTIVITY_CLI) }
+            )
+
+            DrawerDestinationItem(
+                destination = LuxScreenDestination.BUILDER,
+                icon = Icons.Default.Build,
+                isSelected = currentDestination == LuxScreenDestination.BUILDER,
+                onClick = { onSelectDestination(LuxScreenDestination.BUILDER) }
             )
 
             DrawerDestinationItem(
@@ -204,10 +219,17 @@ fun LuxNavigationDrawerContent(
             )
 
             DrawerDestinationItem(
-                destination = LuxScreenDestination.WORKSPACE,
-                icon = Icons.Default.Dashboard,
-                isSelected = currentDestination == LuxScreenDestination.WORKSPACE,
-                onClick = { onSelectDestination(LuxScreenDestination.WORKSPACE) }
+                destination = LuxScreenDestination.PERMISSIONS_SETTINGS,
+                icon = Icons.Default.Tune,
+                isSelected = currentDestination == LuxScreenDestination.PERMISSIONS_SETTINGS,
+                onClick = { onSelectDestination(LuxScreenDestination.PERMISSIONS_SETTINGS) }
+            )
+
+            DrawerDestinationItem(
+                destination = LuxScreenDestination.SECURITY_ACCOUNTS,
+                icon = Icons.Default.Security,
+                isSelected = currentDestination == LuxScreenDestination.SECURITY_ACCOUNTS,
+                onClick = { onSelectDestination(LuxScreenDestination.SECURITY_ACCOUNTS) }
             )
 
             DrawerDestinationItem(
@@ -215,20 +237,6 @@ fun LuxNavigationDrawerContent(
                 icon = Icons.Default.Settings,
                 isSelected = currentDestination == LuxScreenDestination.LUX_SETTINGS,
                 onClick = { onSelectDestination(LuxScreenDestination.LUX_SETTINGS) }
-            )
-
-            DrawerDestinationItem(
-                destination = LuxScreenDestination.SYSTEM_APPS,
-                icon = Icons.Default.Android,
-                isSelected = currentDestination == LuxScreenDestination.SYSTEM_APPS,
-                onClick = { onSelectDestination(LuxScreenDestination.SYSTEM_APPS) }
-            )
-
-            DrawerDestinationItem(
-                destination = LuxScreenDestination.BUILDER,
-                icon = Icons.Default.Android,
-                isSelected = currentDestination == LuxScreenDestination.BUILDER,
-                onClick = { onSelectDestination(LuxScreenDestination.BUILDER) }
             )
         }
 

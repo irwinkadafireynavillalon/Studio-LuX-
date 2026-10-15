@@ -717,7 +717,7 @@ fun StudioDashboardScreen(
                                     color = LuxGoldPrimary
                                 )
                                 Text(
-                                    text = userEmail,
+                                    text = userEmail.ifBlank { "Sin cuenta vinculada (Toca Cambiar)" },
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Monospace,

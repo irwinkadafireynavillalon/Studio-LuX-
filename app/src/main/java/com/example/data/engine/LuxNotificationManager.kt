@@ -107,6 +107,7 @@ class LuxNotificationManager(
 
         try {
             NotificationManagerCompat.from(context).notify(NOTIF_ID_BUILD, notification)
+            soundService?.playNotificationSound()
         } catch (_: SecurityException) {
             // Permission not granted or revoked
         }
@@ -140,6 +141,7 @@ class LuxNotificationManager(
 
         try {
             NotificationManagerCompat.from(context).notify(NOTIF_ID_MODEL, notification)
+            soundService?.playNotificationSound()
         } catch (_: SecurityException) {
             // Permission not granted
         }
@@ -159,6 +161,7 @@ class LuxNotificationManager(
 
         try {
             NotificationManagerCompat.from(context).notify(NOTIF_ID_SYSTEM, notification)
+            soundService?.playNotificationSound()
         } catch (_: SecurityException) {
             // Permission not granted
         }

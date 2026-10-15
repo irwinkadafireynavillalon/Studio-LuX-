@@ -202,7 +202,7 @@ fun LuxAnimatedIntroScreen(
 
             // Título de la Aplicación
             Text(
-                text = "Sys-LUX",
+                text = "Studio LuX",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 3.sp,

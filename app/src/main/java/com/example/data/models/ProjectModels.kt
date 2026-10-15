@@ -369,14 +369,14 @@ enum class AgentActionType {
 }
 
 data class GoogleAccountSyncState(
-    val isSynced: Boolean = true,
-    val email: String = "francisco.reyna2077@gmail.com",
-    val displayName: String = "Francisco Reyna (Google Cloud Dev)",
-    val authProvider: String = "Google Identity · Credential Manager OAuth2",
-    val sessionTokenPreview: String = "ya29.a0AXooCgv_GoogleOAuth_ZeroApiKey_Active",
-    val bypassManualApiKey: Boolean = true,
-    val lastSyncedTimestamp: String = "Sincronizado en vivo",
-    val cloudQuotaStatus: String = "Activo (Sesión Google Vinculada · Sin API Key manual)"
+    val isSynced: Boolean = false,
+    val email: String = "",
+    val displayName: String = "",
+    val authProvider: String = "Firebase Auth · Google Identity",
+    val sessionTokenPreview: String = "",
+    val bypassManualApiKey: Boolean = false,
+    val lastSyncedTimestamp: String = "Sin sesión activa",
+    val cloudQuotaStatus: String = "Inicia sesión con Firebase Auth para desarrolladores de Studio LuX"
 )
 
 enum class UniversalFileCategory(val label: String, val defaultMime: String) {
@@ -449,15 +449,15 @@ enum class AiAgentType(
     GEMMA3_270M_LOCAL(
         id = "gemma3_270m_local",
         displayName = "Gemma3 270m",
-        subtitle = "Localhost Termux (https://90.11.29.1:4250)",
-        hostPort = "https://90.11.29.1:4250",
+        subtitle = "Localhost Termux (http://127.0.0.1:4250/)",
+        hostPort = "http://127.0.0.1:4250/",
         requiresManualKey = false
     ),
     GEMINI3_LIGHT_TERMUX(
         id = "gemini3_light_termux",
         displayName = "Gemma3 270m",
-        subtitle = "Localhost Termux (https://90.11.29.1:4250)",
-        hostPort = "https://90.11.29.1:4250",
+        subtitle = "Localhost Termux (http://127.0.0.1:4250/)",
+        hostPort = "http://127.0.0.1:4250/",
         requiresManualKey = false
     ),
     ANTIGRAVITY_CLI_HYBRID(
@@ -485,6 +485,7 @@ enum class LuxScreenDestination(
     WORKSPACE("workspace", "Workspace", "Workspace", "Editor de Proyectos, Código y Compilación", "nav_workspace"),
     LUX_SETTINGS("lux_settings", "Ajustes LuX", "Ajustes LuX", "Configuración de Sys-LUX, Temas y API Key", "nav_lux_settings"),
     SYSTEM_APPS("system_apps", "LuX App Sistema", "App Sistema", "Gestión y Desinstalación de Apps vía Termux", "nav_system_apps"),
+    ACTIVITY_CLI("activity_cli", "Activity CLI", "Activity CLI", "Línea de Comandos, Diagnóstico y Estado del Sistema", "nav_activity_cli"),
     BUILDER("builder", "Compilador APK", "Compilador", "Generador y Firmador APK Nativo", "nav_builder")
 }
 

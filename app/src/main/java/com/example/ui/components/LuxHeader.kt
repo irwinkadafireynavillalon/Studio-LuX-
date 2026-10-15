@@ -73,15 +73,17 @@ fun LuxHeader(
     selectedTab: LuxNavTab = LuxNavTab.ORCHESTRATOR,
     onSelectTab: ((LuxNavTab) -> Unit)? = null,
     onOpenMenuDrawer: (() -> Unit)? = null,
-    isGoogleAccountSynced: Boolean = true,
-    syncedGoogleEmail: String = "francisco.reyna2077@gmail.com",
+    isGoogleAccountSynced: Boolean = false,
+    syncedGoogleEmail: String = "",
     onOpenGoogleSyncDialog: (() -> Unit)? = null,
     onQuickDownloadAntigravityCli: (() -> Unit)? = null,
     onOpenPermissionsPanel: (() -> Unit)? = null,
     onShareApk: (() -> Unit)? = null,
     onNavigateToOrchestrator: (() -> Unit)? = null,
     onAutoEvolveAndUpdate: (() -> Unit)? = null,
-    onOpenInterfaceSettings: (() -> Unit)? = null
+    onOpenInterfaceSettings: (() -> Unit)? = null,
+    cpuUsage: Int = 0,
+    ramUsage: Int = 0
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -126,27 +128,6 @@ fun LuxHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                if (onOpenMenuDrawer != null) {
-                    Box(
-                        modifier = Modifier
-                            .height(26.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(LuxGoldContainer)
-                            .border(0.7.dp, LuxGoldPrimary, RoundedCornerShape(6.dp))
-                            .clickable { onOpenMenuDrawer() }
-                            .padding(horizontal = 6.dp)
-                            .testTag("btn_header_open_menu_drawer"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menú LuX", tint = LuxGoldPrimary, modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("Menú", fontSize = 9.sp, color = LuxGoldPrimary, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
-
                 Box(
                     modifier = Modifier
                         .size(28.dp)
@@ -179,7 +160,7 @@ fun LuxHeader(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "LUX",
+                            text = "Studio LuX",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 1.4.sp,
@@ -253,10 +234,10 @@ fun LuxHeader(
                         }
                     }
                     Text(
-                        text = if (isGoogleAccountSynced) {
-                            "Cuenta Google: $syncedGoogleEmail · Antigravity CLI Activo"
+                        text = if (isGoogleAccountSynced && syncedGoogleEmail.isNotBlank()) {
+                            "Desarrollador: $syncedGoogleEmail · Antigravity CLI"
                         } else {
-                            "Auto-DevOS · Cristal Oro y Plata · ${latencyMs}ms"
+                            "Auto-DevOS · Cristal Oro y Plata · ${latencyMs}ms · CPU: ${cpuUsage}% · RAM: ${ramUsage}MB"
                         },
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.5.sp),
                         color = LuxPlatinumSecondary,
@@ -266,116 +247,23 @@ fun LuxHeader(
                 }
             }
 
-            // Right: Compact Non-Intrusive Action Icons (27.dp)
+            // Right: Compact Non-Intrusive Menu Button (27.dp)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                if (onOpenGoogleSyncDialog != null) {
+                if (onOpenMenuDrawer != null) {
                     Box(
                         modifier = Modifier
                             .size(27.dp)
                             .clip(RoundedCornerShape(7.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0x554285F4), Color(0x4530E389))
-                                )
-                            )
-                            .border(0.8.dp, LuxGoldSilverBorderBrush, RoundedCornerShape(7.dp))
-                            .clickable { onOpenGoogleSyncDialog() }
-                            .testTag("btn_header_google_account_icon"),
+                            .background(LuxGoldContainer)
+                            .border(0.7.dp, LuxGoldPrimary, RoundedCornerShape(7.dp))
+                            .clickable { onOpenMenuDrawer() }
+                            .testTag("btn_header_open_menu_drawer"),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "Sincronizar Cuenta Google sin API Key",
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-
-                if (onQuickDownloadAntigravityCli != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(27.dp)
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(Color(0x47152530))
-                            .border(0.8.dp, LuxGoldSilverBorderBrush, RoundedCornerShape(7.dp))
-                            .clickable { onQuickDownloadAntigravityCli() }
-                            .testTag("btn_header_download_cli"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = "Descargar Antigravity CLI",
-                            tint = LuxAccentCyan,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-
-                if (onOpenInterfaceSettings != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(27.dp)
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0x47FFD54F), Color(0x42E2E8F0))
-                                )
-                            )
-                            .border(0.8.dp, LuxGoldSilverBorderBrush, RoundedCornerShape(7.dp))
-                            .clickable { onOpenInterfaceSettings() }
-                            .testTag("btn_header_interface_settings"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Palette,
-                            contentDescription = "Ajustes de Interfaz Oro y Plata",
-                            tint = LuxGoldLight,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-
-                if (onOpenPermissionsPanel != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(27.dp)
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(Color(0x471E2430))
-                            .border(0.8.dp, LuxGoldSilverBorderBrush, RoundedCornerShape(7.dp))
-                            .clickable { onOpenPermissionsPanel() }
-                            .testTag("btn_header_permissions"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = "Panel de Permisos",
-                            tint = LuxPlatinumSecondary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-
-                if (onShareApk != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(27.dp)
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(Color(0x47332811))
-                            .border(0.8.dp, LuxGoldSilverBorderBrush, RoundedCornerShape(7.dp))
-                            .clickable { onShareApk() }
-                            .testTag("btn_header_share_apk"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Compartir APK de LUX",
-                            tint = LuxGoldPrimary,
-                            modifier = Modifier.size(14.dp)
-                        )
+                        Icon(Icons.Default.Menu, contentDescription = "Menú", tint = LuxGoldPrimary, modifier = Modifier.size(14.dp))
                     }
                 }
             }

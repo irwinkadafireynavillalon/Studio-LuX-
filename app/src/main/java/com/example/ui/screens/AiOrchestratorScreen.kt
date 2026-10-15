@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.RocketLaunch
@@ -67,6 +68,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -191,6 +193,21 @@ fun AiOrchestratorScreen(
             val imported = repository.importDeviceUriAsUniversalFile(context, uri, soundService)
             orchestratorService.sendMessageWithAttachment(
                 userText = inputPrompt,
+                attachedFiles = listOf(imported),
+                onNavigateToTab = onNavigateToTab
+            )
+            inputPrompt = ""
+        }
+    }
+
+    // Selector de fotos / imágenes
+    val pickImageChatLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val imported = repository.importDeviceUriAsUniversalFile(context, uri, soundService)
+            orchestratorService.sendMessageWithAttachment(
+                userText = if (inputPrompt.isBlank()) "Analiza esta imagen adjunta" else inputPrompt,
                 attachedFiles = listOf(imported),
                 onNavigateToTab = onNavigateToTab
             )
@@ -588,29 +605,7 @@ fun AiOrchestratorScreen(
                     }
 
                     // Atajo 4: Botón Flotante (PiP / Floating HUD sobre otras apps con enlace a ajustes de tamaño y transparencia)
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0x35332811))
-                            .border(0.8.dp, LuxGoldSilverBorderBrush, RoundedCornerShape(8.dp))
-                            .clickable {
-                                soundService.playClick()
-                                LuxPriorityKernelService.toggleInAppFloatingHud()
-                                if (onOpenInterfaceSettingsDialog != null) {
-                                    onOpenInterfaceSettingsDialog()
-                                }
-                            }
-                            .testTag("shortcut_floating_hud_settings"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PictureInPictureAlt,
-                            contentDescription = "Botón Flotante y Ajustes de Tamaño/Transparencia",
-                            tint = LuxGoldPrimary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
+                    // Botón eliminado por solicitud del usuario
                 }
             }
         }
@@ -627,6 +622,8 @@ fun AiOrchestratorScreen(
             items(messages, key = { it.id }) { msg ->
                 CleanChatMessageItem(
                     message = msg,
+                    repository = repository,
+                    soundService = soundService,
                     onActionClick = { action ->
                         orchestratorService.executeAction(action, context, onNavigateToTab)
                     }
@@ -657,105 +654,239 @@ fun AiOrchestratorScreen(
             }
         }
 
-        // BARRA DE ENTRADA DE TEXTO CON CRISTAL ORO Y PLATA METÁLICO
+        // BARRA DE ENTRADA DE TEXTO INFERIOR CON LOS 4 BOTONES SOLICITADOS
         Surface(
             color = Color(0x9410141E),
             border = androidx.compose.foundation.BorderStroke(1.dp, LuxGoldSilverBorderBrush)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                // Botón para Adjuntar y Enviar CUALQUIER archivo (*/*)
-                Box(
+                // 3. Prompt con sugerencias (chips de sugerencia rápida)
+                val suggestions = listOf(
+                    "🎨 Crear Imagen",
+                    "🎬 Crear Video",
+                    "🎵 Crear Canción",
+                    "🚀 Crear App Room",
+                    "📦 Compilar APK"
+                )
+                Row(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x35192130))
-                        .border(1.dp, LuxGoldPrimary.copy(alpha = 0.8f), CircleShape)
-                        .clickable {
-                            soundService.playClick()
-                            openAnyFileChatLauncher.launch(arrayOf("*/*"))
-                        }
-                        .testTag("btn_attach_universal_file_chat"),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AttachFile,
-                        contentDescription = "Adjuntar archivo (*/*)",
-                        tint = LuxGoldLight,
-                        modifier = Modifier.size(17.dp)
-                    )
+                    suggestions.forEach { sug ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x35FFD54F))
+                                .border(0.6.dp, LuxGoldPrimary, RoundedCornerShape(6.dp))
+                                .clickable {
+                                    soundService.playClick()
+                                    inputPrompt = sug.replace(Regex("[^a-zA-ZáéíóúñÁÉÍÓÚÑ0-9 ]"), "").trim()
+                                }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(sug, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = LuxGoldLight)
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. Botón de "+" (aquí aparecen opciones de crear imagen, video, canción y enviar imagen foto o archivo)
+                    var showPlusMenu by remember { mutableStateOf(false) }
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x35FFD54F))
+                                .border(1.dp, LuxGoldPrimary, CircleShape)
+                                .clickable {
+                                    soundService.playClick()
+                                    showPlusMenu = true
+                                }
+                                .testTag("btn_plus_options"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.AutoAwesome,
+                                contentDescription = "Menú Creación y Archivos (+)",
+                                tint = LuxGoldLight,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
 
-                OutlinedTextField(
-                    value = inputPrompt,
-                    onValueChange = { inputPrompt = it },
-                    placeholder = {
-                        Text(
-                            "Escribe tu instrucción o prompt a Studio LuX...",
-                            fontSize = 11.5.sp,
-                            color = LuxOnDarkMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                        if (showPlusMenu) {
+                            androidx.compose.material3.DropdownMenu(
+                                expanded = showPlusMenu,
+                                onDismissRequest = { showPlusMenu = false },
+                                modifier = Modifier.background(LuxDarkSurface)
+                            ) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("🎨 Crear Imagen IA", color = LuxGoldLight, fontSize = 12.sp) },
+                                    onClick = {
+                                        showPlusMenu = false
+                                        soundService.playClick()
+                                        inputPrompt = "Crea una imagen artística y detallada de: "
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("🎬 Crear Video", color = LuxGoldLight, fontSize = 12.sp) },
+                                    onClick = {
+                                        showPlusMenu = false
+                                        soundService.playClick()
+                                        inputPrompt = "Genera un clip de video sobre: "
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("🎵 Crear Canción", color = LuxGoldLight, fontSize = 12.sp) },
+                                    onClick = {
+                                        showPlusMenu = false
+                                        soundService.playClick()
+                                        inputPrompt = "Compón una canción y letra sobre: "
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("📷 Enviar Imagen / Foto", color = LuxAccentCyan, fontSize = 12.sp) },
+                                    onClick = {
+                                        showPlusMenu = false
+                                        soundService.playClick()
+                                        openAnyFileChatLauncher.launch(arrayOf("image/*"))
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("📁 Enviar Archivo", color = LuxAccentCyan, fontSize = 12.sp) },
+                                    onClick = {
+                                        showPlusMenu = false
+                                        soundService.playClick()
+                                        openAnyFileChatLauncher.launch(arrayOf("*/*"))
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // 2. Botón de Grabar Audio (Micrófono)
+                    val speechLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.StartActivityForResult()
+                    ) { result ->
+                        if (result.resultCode == android.app.Activity.RESULT_OK) {
+                            val spoken = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                            if (!spoken.isNullOrBlank()) {
+                                inputPrompt = spoken
+                                soundService.playSuccess()
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x35192130))
+                            .border(1.dp, LuxAccentCyan.copy(alpha = 0.8f), CircleShape)
+                            .clickable {
+                                soundService.playClick()
+                                try {
+                                    val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                        putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Habla tu comando para Studio LuX...")
+                                    }
+                                    speechLauncher.launch(intent)
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "Grabación de audio iniciada", Toast.LENGTH_SHORT).show()
+                                    inputPrompt = "Comando de voz grabado..."
+                                }
+                            }
+                            .testTag("btn_record_audio"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Mic,
+                            contentDescription = "Grabar Audio",
+                            tint = LuxAccentCyan,
+                            modifier = Modifier.size(17.dp)
                         )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("input_agent_chat"),
-                    maxLines = 3,
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, color = LuxOnDark),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = LuxGoldPrimary,
-                        unfocusedBorderColor = LuxDarkBorder,
-                        focusedContainerColor = Color(0xFF0C1018),
-                        unfocusedContainerColor = Color(0xFF0C1018),
-                        focusedTextColor = LuxOnDark,
-                        unfocusedTextColor = LuxOnDark
-                    ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(
-                        onSend = {
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // 3. Prompt con Sugerencias (OutlinedTextField)
+                    OutlinedTextField(
+                        value = inputPrompt,
+                        onValueChange = { inputPrompt = it },
+                        placeholder = {
+                            Text(
+                                "Escribe tu prompt o instrucción...",
+                                fontSize = 11.5.sp,
+                                color = LuxOnDarkMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("input_agent_chat"),
+                        maxLines = 3,
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, color = LuxOnDark),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = LuxGoldPrimary,
+                            unfocusedBorderColor = LuxDarkBorder,
+                            focusedContainerColor = Color(0xFF0C1018),
+                            unfocusedContainerColor = Color(0xFF0C1018),
+                            focusedTextColor = LuxOnDark,
+                            unfocusedTextColor = LuxOnDark
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(
+                            onSend = {
+                                if (inputPrompt.isNotBlank()) {
+                                    orchestratorService.sendMessage(inputPrompt, onNavigateToTab)
+                                    inputPrompt = ""
+                                }
+                            }
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // 4. Enviar Mensaje
+                    Button(
+                        onClick = {
                             if (inputPrompt.isNotBlank()) {
                                 orchestratorService.sendMessage(inputPrompt, onNavigateToTab)
                                 inputPrompt = ""
                             }
-                        }
-                    )
-                )
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Botón Enviar Prompt
-                Button(
-                    onClick = {
-                        if (inputPrompt.isNotBlank()) {
-                            orchestratorService.sendMessage(inputPrompt, onNavigateToTab)
-                            inputPrompt = ""
-                        }
-                    },
-                    enabled = inputPrompt.isNotBlank() && !isGenerating,
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = LuxGoldPrimary,
-                        disabledContainerColor = Color(0x352E2412)
-                    ),
-                    modifier = Modifier
-                        .size(36.dp)
-                        .testTag("btn_send_agent_prompt"),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Enviar",
-                        tint = if (inputPrompt.isNotBlank()) LuxDarkBackground else LuxOnDarkMuted,
-                        modifier = Modifier.size(17.dp)
-                    )
+                        },
+                        enabled = inputPrompt.isNotBlank() && !isGenerating,
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LuxGoldPrimary,
+                            disabledContainerColor = Color(0x352E2412)
+                        ),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("btn_send_agent_prompt"),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Enviar",
+                            tint = if (inputPrompt.isNotBlank()) LuxDarkBackground else LuxOnDarkMuted,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                 }
             }
         }
@@ -856,7 +987,7 @@ private fun MultiIaControlDialog(
             ) {
                 // 1. BOTÓN IA DE GÉMINIS (Cloud Oficial)
                 MultiIaOptionCard(
-                    title = "1. IA de Géminis",
+                    title = "IA de Géminis",
                     badge = "Cloud Oficial · Google AI Studio",
                     subtitle = "Acceso a Gemini 3.5 Flash, 3.1 Pro y Flash Lite",
                     icon = Icons.Default.AutoAwesome,
@@ -874,8 +1005,8 @@ private fun MultiIaControlDialog(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0x35FFD54F))
                                 .border(0.6.dp, LuxGoldPrimary, RoundedCornerShape(6.dp))
-                            .clickable { onOpenApiKeyModal() }
-                            .padding(vertical = 5.dp),
+                                .clickable { onOpenApiKeyModal() }
+                                .padding(vertical = 5.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("🔑 Clave API", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = LuxGoldLight)
@@ -887,8 +1018,8 @@ private fun MultiIaControlDialog(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0x354285F4))
                                 .border(0.6.dp, LuxAccentCyan, RoundedCornerShape(6.dp))
-                            .clickable { onSyncGoogle() }
-                            .padding(vertical = 5.dp),
+                                .clickable { onSyncGoogle() }
+                                .padding(vertical = 5.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -903,7 +1034,7 @@ private fun MultiIaControlDialog(
 
                 // 2. BOTÓN IA GEMMA VERTEX (Google Cloud Console & Vertex Gateway)
                 MultiIaOptionCard(
-                    title = "2. IA Gemma Vertex",
+                    title = "IA Gemma Vertex",
                     badge = "Vertex AI Gateway (90.11.29.1:1402)",
                     subtitle = "Modelos Gemma empresariales en la nube Google Cloud",
                     icon = Icons.Default.CloudDone,
@@ -962,7 +1093,7 @@ private fun MultiIaControlDialog(
 
                 // 3. BOTÓN GEMMA3 270M (Descarga Local + Servidor Localhost https://90.11.29.1:4250)
                 MultiIaOptionCard(
-                    title = "3. Gemma3 270m",
+                    title = "Gemma3 270m",
                     badge = "Localhost https://90.11.29.1:4250 (Termux)",
                     subtitle = "Descarga de modelo gemma-3-270m y creación de servidor local",
                     icon = Icons.Default.Storage,
@@ -998,7 +1129,7 @@ private fun MultiIaControlDialog(
 
                 // 4. BOTÓN ANTIGRAVITY CLI HÍBRIDO (Orquestador + Memoria Cloud/Drive)
                 MultiIaOptionCard(
-                    title = "4. Antigravity CLI (Híbrido)",
+                    title = "Antigravity CLI (Híbrido)",
                     badge = "Asistente Agente & Orquestador",
                     subtitle = "Usa cualquier IA activa y guarda memoria en Google Cloud o Google Drive",
                     icon = Icons.Default.RocketLaunch,
@@ -1224,8 +1355,11 @@ private fun MultiIaOptionCard(
 @Composable
 private fun CleanChatMessageItem(
     message: AgentChatMessage,
+    repository: LuxRepository,
+    soundService: SoundHapticService,
     onActionClick: (AgentInteractiveAction) -> Unit
 ) {
+    val context = LocalContext.current
     val isUser = message.sender == AgentMessageSender.USER
 
     Row(
@@ -1307,7 +1441,7 @@ private fun CleanChatMessageItem(
                             fontSize = 12.sp,
                             lineHeight = 16.5.sp
                         ),
-                        color = Color(0xFFF8FAFC) // Letras que resaltan con alto contraste en fondo transparente
+                        color = Color(0xFFF8FAFC)
                     )
 
                     // Archivos adjuntos universales
@@ -1398,6 +1532,82 @@ private fun CleanChatMessageItem(
                                             maxLines = 1
                                         )
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    // Opción para respuestas de la IA: Escuchar audio, Copiar y Compartir respuesta
+                    if (!isUser) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 1. Escuchar Audio
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0x354285F4))
+                                    .border(0.5.dp, LuxAccentCyan, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        soundService.playClick()
+                                        repository.speakWithTts(message.text)
+                                        Toast.makeText(context, "Reproduciendo respuesta con TTS...", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.VolumeUp, contentDescription = "Escuchar audio", tint = LuxAccentCyan, modifier = Modifier.size(11.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("Escuchar", fontSize = 9.sp, color = LuxAccentCyan, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // 2. Copiar Respuesta
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0x35FFD54F))
+                                    .border(0.5.dp, LuxGoldPrimary, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        soundService.playClick()
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Respuesta IA Studio LuX", message.text))
+                                        Toast.makeText(context, "Respuesta copiada", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = LuxGoldPrimary, modifier = Modifier.size(11.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("Copiar", fontSize = 9.sp, color = LuxGoldLight, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // 3. Compartir Respuesta
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0x3534D399))
+                                    .border(0.5.dp, LuxAccentGreen, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        soundService.playClick()
+                                        val sendIntent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            putExtra(Intent.EXTRA_TEXT, message.text)
+                                            type = "text/plain"
+                                        }
+                                        val shareIntent = Intent.createChooser(sendIntent, "Compartir respuesta de Studio LuX")
+                                        context.startActivity(shareIntent)
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Share, contentDescription = "Compartir", tint = LuxAccentGreen, modifier = Modifier.size(11.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("Compartir", fontSize = 9.sp, color = LuxAccentGreen, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

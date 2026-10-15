@@ -38,12 +38,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
 
-    <!-- Almacenamiento de Modelos IA (hasta 500MB+) y APKs Compilados -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
 
     <application
         android:allowBackup="true"
@@ -76,6 +71,7 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Orquestación continua de compilación APK, inferencia local NPU de 500MB y consola flotante sobre otras aplicaciones" />
         </service>
+        <receiver android:name=".data.engine.NotificationReceiver" android:exported="false" />
 
         <activity
             android:name=".MainActivity"

@@ -87,7 +87,8 @@ fun SecurityAndAccountsScreen(
     repository: LuxRepository,
     soundService: SoundHapticService,
     onOpenGoogleSyncDialog: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenDeveloperAuthDialog: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -265,18 +266,28 @@ fun SecurityAndAccountsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LuxAccentGreen, modifier = Modifier.size(12.dp))
+                        Icon(
+                            imageVector = if (googleSyncState.isSynced && googleSyncState.email.isNotBlank()) Icons.Default.CheckCircle else Icons.Default.AccountCircle,
+                            contentDescription = null,
+                            tint = if (googleSyncState.isSynced && googleSyncState.email.isNotBlank()) LuxAccentGreen else LuxGoldPrimary,
+                            modifier = Modifier.size(12.dp)
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Cuenta Google (Credential Manager)", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = LuxGoldLight)
+                        Text("Firebase Auth & Cuenta Google", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = LuxGoldLight)
                     }
-                    Text(googleSyncState.email, fontSize = 9.sp, color = LuxPlatinumSecondary)
-                    Text("Zero-API-Key activo · Sesión OAuth2 vinculada", fontSize = 8.sp, color = LuxAccentGreen)
+                    if (googleSyncState.email.isNotBlank()) {
+                        Text(googleSyncState.email, fontSize = 9.sp, color = LuxPlatinumSecondary)
+                        Text("Sesión de Desarrollador verificada en Studio LuX", fontSize = 8.sp, color = LuxAccentGreen)
+                    } else {
+                        Text("Sin desarrollador autenticado", fontSize = 9.sp, color = LuxPlatinumSecondary)
+                        Text("Toca 'Gestionar' para iniciar sesión segura", fontSize = 8.sp, color = LuxGoldPrimary)
+                    }
                 }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .background(LuxGoldContainer)
-                        .clickable { onOpenGoogleSyncDialog() }
+                        .clickable { onOpenDeveloperAuthDialog?.invoke() ?: onOpenGoogleSyncDialog() }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text("Gestionar", fontSize = 9.sp, color = LuxGoldPrimary, fontWeight = FontWeight.Bold)
